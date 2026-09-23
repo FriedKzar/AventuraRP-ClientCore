@@ -1,0 +1,62 @@
+name: Build SkyrimPlatform 1.7.104
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout SkyMP
+        shell: powershell
+        run: |
+          git clone --recursive https://github.com/skyrim-multiplayer/skymp.git skymp
+          cd skymp
+          git checkout f926944b18e3aed4bc3864ce668626c05ec2545f
+          git submodule update --init --recursive
+
+      - name: Apply Aventura RP CommonLib 7.5.4 port
+        shell: powershell
+        run: .\apply_port.ps1 -SkyMP "$pwd\skymp"
+
+      - name: Prepare Yarn
+        shell: powershell
+        run: |
+          corepack enable
+          yarn --version
+
+      - name: Configure
+        shell: powershell
+        run: |
+          cmake -S "$pwd\skymp" -B "$pwd\skymp\build" -G "Visual Studio 17 2022" -A x64 `
+            -DBUILD_UNIT_TESTS=OFF `
+            -DBUILD_GAMEMODE=OFF `
+            -DBUILD_FRONT=OFF `
+            -DBUILD_CLIENT=OFF `
+            -DBUILD_SKYRIM_PLATFORM=ON `
+            -DBUILD_SCRIPTS=OFF `
+            -DINSTALL_CLIENT_DIST=OFF `
+            -DGENERATE_CLIENT_SETTINGS=OFF `
+            -DPREPARE_NEXUS_ARCHIVES=OFF `
+            -DOFFLINE_MODE=ON
+
+      - name: Build
+        shell: powershell
+        run: cmake --build "$pwd\skymp\build" --config Release --target skyrim-platform -- /m
+
+      - name: Collect diagnostics
+        if: always()
+        shell: powershell
+        run: |
+          Get-ChildItem -Path "$pwd\skymp\build" -Recurse -Include SkyrimPlatform.dll,SkyrimPlatformImpl.dll,SkyrimPlatformCEF.exe.hidden -ErrorAction SilentlyContinue | Select-Object FullName,Length | Format-Table -AutoSize
+
+      - name: Upload client core
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AventuraRP-SkyrimPlatform-1.7.104
+          path: skymp/build/dist/client
+          if-no-files-found: error
