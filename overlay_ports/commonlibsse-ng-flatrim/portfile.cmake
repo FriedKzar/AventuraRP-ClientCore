@@ -22,7 +22,19 @@ vcpkg_cmake_configure(
 )
 
 vcpkg_cmake_install()
-vcpkg_cmake_config_fixup(PACKAGE_NAME CommonLibSSE CONFIG_PATH lib/cmake/CommonLibSSE)
+
+vcpkg_cmake_config_fixup(
+    PACKAGE_NAME CommonLibSSE
+    CONFIG_PATH lib/cmake/CommonLibSSE
+)
+
+# O Config.cmake da CommonLib chama este helper.
+# O install upstream não o copia automaticamente.
+file(
+    INSTALL "${SOURCE_PATH}/cmake/CommonLibSSE.cmake"
+    DESTINATION "${CURRENT_PACKAGES_DIR}/share/CommonLibSSE"
+)
+
 vcpkg_copy_pdbs()
 
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/include")
