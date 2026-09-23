@@ -1,0 +1,7 @@
+Aventura RP SkyrimPlatform 1.7.104 Port Kit
+SkyMP commit: f926944b18e3aed4bc3864ce668626c05ec2545f
+CommonLibSSE-NG: alandtse/CommonLibSSE-NG v7.5.4
+CommonLib commit: c5424463bba9af0d75cde8640ba7ddd4cacb9e39
+Target Skyrim runtime: 1.7.104.0
+Target SKSE: 2.3.1
+Address Library expected: Data/SKSE/Plugins/versionlib-1-7-104-0.bin (format 5)
