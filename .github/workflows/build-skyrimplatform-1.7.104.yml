@@ -3,12 +3,30 @@ name: Build SkyrimPlatform 1.7.104
 on:
   workflow_dispatch:
 
+env:
+  VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\.vcpkg-cache
+
 jobs:
   build:
     runs-on: windows-2022
     timeout-minutes: 120
+
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+
+      - name: Prepare vcpkg cache
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:VCPKG_DEFAULT_BINARY_CACHE" | Out-Null
+
+      - name: Restore vcpkg cache
+        id: vcpkg-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .vcpkg-cache
+          key: aventurarp-vcpkg-${{ runner.os }}-${{ hashFiles('overlay_ports/**', 'VERSIONS.lock.txt') }}
+          restore-keys: |
+            aventurarp-vcpkg-${{ runner.os }}-
 
       - name: Checkout SkyMP
         shell: powershell
@@ -42,6 +60,13 @@ jobs:
             -DGENERATE_CLIENT_SETTINGS=OFF `
             -DPREPARE_NEXUS_ARCHIVES=OFF `
             -DOFFLINE_MODE=ON
+
+      - name: Save vcpkg cache
+        if: always() && steps.vcpkg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .vcpkg-cache
+          key: aventurarp-vcpkg-${{ runner.os }}-${{ hashFiles('overlay_ports/**', 'VERSIONS.lock.txt') }}
 
       - name: Build
         shell: powershell
