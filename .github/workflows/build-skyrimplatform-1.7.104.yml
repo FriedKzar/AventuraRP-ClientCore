@@ -38,7 +38,8 @@ jobs:
 
       - name: Apply Aventura RP CommonLib 7.5.4 port
         shell: powershell
-        run: .\apply_port.ps1 -SkyMP "$pwd\skymp"
+        run: |
+          .\apply_port.ps1 -SkyMP "$pwd\skymp"
 
       - name: Prepare Yarn
         shell: powershell
@@ -53,11 +54,11 @@ jobs:
             -DBUILD_UNIT_TESTS=OFF `
             -DBUILD_GAMEMODE=OFF `
             -DBUILD_FRONT=OFF `
-            -DBUILD_CLIENT=OFF `
+            -DBUILD_CLIENT=ON `
             -DBUILD_SKYRIM_PLATFORM=ON `
             -DBUILD_SCRIPTS=OFF `
             -DINSTALL_CLIENT_DIST=OFF `
-            -DGENERATE_CLIENT_SETTINGS=OFF `
+            -DGENERATE_CLIENT_SETTINGS=ON `
             -DPREPARE_NEXUS_ARCHIVES=OFF `
             -DOFFLINE_MODE=ON
 
@@ -70,18 +71,94 @@ jobs:
 
       - name: Build
         shell: powershell
-        run: cmake --build "$pwd\skymp\build" --config Release --target skyrim-platform -- /m
+        run: |
+          cmake --build "$pwd\skymp\build" `
+            --config Release `
+            --target skyrim-platform skymp5-client `
+            -- /m
 
       - name: Collect diagnostics
         if: always()
         shell: powershell
         run: |
-          Get-ChildItem -Path "$pwd\skymp\build" -Recurse -Include SkyrimPlatform.dll,SkyrimPlatformImpl.dll,SkyrimPlatformCEF.exe.hidden -ErrorAction SilentlyContinue | Select-Object FullName,Length | Format-Table -AutoSize
+          Write-Host ""
+          Write-Host "=== SkyrimPlatform binaries ==="
+          Get-ChildItem `
+            -Path "$pwd\skymp\build" `
+            -Recurse `
+            -Include SkyrimPlatform.dll,SkyrimPlatformImpl.dll,SkyrimPlatformCEF.exe.hidden,MpClientPlugin.dll `
+            -ErrorAction SilentlyContinue |
+            Select-Object FullName,Length |
+            Format-Table -AutoSize
+
+          Write-Host ""
+          Write-Host "=== SkyMP client ==="
+
+          $clientJs = Join-Path `
+            "$pwd\skymp\build\dist\client" `
+            "Data\Platform\Plugins\skymp5-client.js"
+
+          $clientSettings = Join-Path `
+            "$pwd\skymp\build\dist\client" `
+            "Data\Platform\Plugins\skymp5-client-settings.txt"
+
+          if (Test-Path $clientJs) {
+            Write-Host "OK: skymp5-client.js encontrado."
+            Get-Item $clientJs |
+              Select-Object FullName,Length |
+              Format-Table -AutoSize
+          }
+          else {
+            Write-Host "ERRO: skymp5-client.js nao foi gerado."
+          }
+
+          if (Test-Path $clientSettings) {
+            Write-Host "OK: skymp5-client-settings.txt encontrado."
+          }
+          else {
+            Write-Host "AVISO: skymp5-client-settings.txt nao foi gerado."
+          }
+
+      - name: Validate complete client core
+        shell: powershell
+        run: |
+          $root = "$pwd\skymp\build\dist\client"
+
+          $required = @(
+            "Data\SKSE\Plugins\SkyrimPlatform.dll",
+            "Data\SKSE\Plugins\MpClientPlugin.dll",
+            "Data\Platform\Distribution\RuntimeDependencies\SkyrimPlatformImpl.dll",
+            "Data\Platform\Distribution\RuntimeDependencies\SkyrimPlatformCEF.exe.hidden",
+            "Data\Platform\Plugins\skymp5-client.js",
+            "Data\Scripts\TESModPlatform.pex"
+          )
+
+          $missing = @()
+
+          foreach ($relative in $required) {
+            $full = Join-Path $root $relative
+
+            if (Test-Path $full) {
+              Write-Host "OK  $relative"
+            }
+            else {
+              Write-Host "FALTA  $relative"
+              $missing += $relative
+            }
+          }
+
+          if ($missing.Count -gt 0) {
+            Write-Error "Client Core incompleto. Faltam $($missing.Count) arquivo(s)."
+            exit 1
+          }
+
+          Write-Host ""
+          Write-Host "Aventura RP Client Core completo."
 
       - name: Upload client core
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: AventuraRP-SkyrimPlatform-1.7.104
+          name: AventuraRP-ClientCore-1.7.104
           path: skymp/build/dist/client
           if-no-files-found: error
