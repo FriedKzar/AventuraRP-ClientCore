@@ -401,6 +401,52 @@ Replace-Exact `
     -Label 'SKSEPlugin_Load_Impl atualizado para API atual'
 
 
+# ============================================================
+# 7. MenuControls::screenshotHandler
+#
+# Na CommonLibSSE-NG atual screenshotHandler e um ponteiro cru.
+# A versao antiga do SkyMP tentava chamar .get().
+# ============================================================
+
+$devApiContent = Read-All $devApi
+
+$oldScreenshotHandler = @'
+  RE::MenuEventHandler* originalHandler =
+    (RE::MenuEventHandler*)mc->screenshotHandler.get();
+'@
+
+$newScreenshotHandler = @'
+  RE::MenuEventHandler* originalHandler =
+    (RE::MenuEventHandler*)mc->screenshotHandler;
+'@
+
+if ($devApiContent.Contains($oldScreenshotHandler)) {
+
+    $devApiContent =
+        $devApiContent.Replace(
+            $oldScreenshotHandler,
+            $newScreenshotHandler
+        )
+
+    Write-All $devApi $devApiContent
+
+    Write-Host `
+        "Aventura RP: screenshotHandler atualizado para ponteiro direto." `
+        -ForegroundColor Green
+}
+elseif ($devApiContent.Contains($newScreenshotHandler)) {
+
+    Write-Host `
+        "Aventura RP: screenshotHandler ja atualizado." `
+        -ForegroundColor Yellow
+}
+else {
+
+    throw `
+        "Aventura RP: nao encontrei screenshotHandler esperado em DevApi.cpp"
+}
+
+
 Write-Host ""
 Write-Host `
     "======================================================" `
